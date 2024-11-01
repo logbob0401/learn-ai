@@ -788,6 +788,25 @@ A30的每个SM中包含了4个Tensor核心，可以加速深度学习框架中�
 A100配备了640个Tensor核心，显著加速了深度学习任务中的矩阵运算。Tensor核心在执行混合精度计算（FP16/FP32）时效率极高，特别适合训练和推理大型神经网络。
 H100配备了896个Tensor核心
 
+### 5. 实践
+总结fp16训练问题和实践经验
+Build_nanogpt/ practice.md
+中文版总结
+
+在 GPT-2 模型的训练中，由于 FP16 和 BF16 的精度差异，会带来不同的数值稳定性挑战。FP16 具有较小的指数范围和较高的精度，而 BF16 拥有与 FP32 相同的指数范围但精度略低。这种差异使得 FP16 更容易在复杂计算中出现下溢或上溢问题，尤其在 V100 等不支持 BF16 的 GPU 上，训练时需要额外的处理。
+
+使用 FP16 时，训练过程可能会面临数值不稳定的情况，尤其在一些敏感操作中，例如 Softmax、LayerNorm 和 Scaled Dot-Product Attention。为了解决这些问题，通常需要在这些操作上选择性地使用 FP32，以确保计算的准确性。同时，AMP（自动混合精度）可以通过动态损失缩放来减少梯度下溢风险，适当增加优化器的 eps 参数也能增强稳定性。
+
+在支持 BF16 的 H 系列 GPU（如 A100）上，BF16 更适合 GPT-2 的训练，因为它具备更大的动态范围，能直接在 FP32 范围内进行计算，减少了下溢或上溢的可能性。在这种硬件上，BF16 不需要额外的损失缩放或层级精度控制即可实现稳定的训练。因此，相比 FP16，BF16 显著减少了 GPT-2 训练中的额外配置需求，提高了数值稳定性和模型收敛效果。
+
+English Summary
+
+In training the GPT-2 model, the differences between FP16 and BF16 can lead to distinct challenges in numerical stability. FP16 has a narrower exponent range with higher precision, while BF16 has the same exponent range as FP32 but slightly lower precision. This disparity means that FP16 is more prone to underflows or overflows during complex computations, particularly on GPUs like the V100 that do not support BF16, necessitating additional handling during training.
+
+When using FP16, the training process may encounter numerical instability, especially in operations that are sensitive to precision, such as Softmax, LayerNorm, and Scaled Dot-Product Attention. To mitigate this, selective use of FP32 for these sensitive operations is often required to ensure accuracy. Additionally, AMP (Automatic Mixed Precision) can dynamically adjust loss scaling to prevent gradient underflows, and increasing the optimizer’s eps parameter can further improve stability.
+
+On BF16-supported H-series GPUs, such as the A100, BF16 is generally preferable for GPT-2 training, as it provides a wider dynamic range capable of representing FP32-scale values, minimizing underflow or overflow risks. BF16 on this hardware thus requires fewer additional measures, such as loss scaling or precision control at the layer level, to achieve stable training. Consequently, BF16 significantly reduces the need for extra configuration and enhances numerical stability and model convergence compared to FP16 in GPT-2 training.
+
 flops估计
 矩阵乘法的计算量，及为什么我们要同时考虑加法和乘法？
 A is [m,n], B is [n,p]
